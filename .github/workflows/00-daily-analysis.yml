@@ -1,17 +1,27 @@
 name: 每日股票分析
 
 on:
-  # 定时触发 - 每天北京时间 18:00 (UTC 10:00)
+  # 台灣時間：台股週一至週五 17:00；美股週二至週六 07:00（對應美國週一至週五收盤）
   schedule:
-    - cron: '0 10 * * 1-5'     # 周一到周五，UTC 10:00 = 北京时间 18:00
+    - cron: '0 9 * * 1-5'
+    - cron: '0 23 * * 1-5'
   
   # 手动触发
   workflow_dispatch:
     inputs:
+      market:
+        description: '分析市場（台股／美股／全部）'
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - tw
+          - us
       mode:
         description: '运行模式'
         required: true
-        default: 'full'
+        default: 'stocks-only'
         type: choice
         options:
           - full          # 完整分析（股票+大盘）
@@ -434,6 +444,8 @@ jobs:
           # 自选股配置
           # ==========================================
           # 避免直接写入 STOCK_LIST，保留同名 Environment variables 的 runner 环境值。
+          SCHEDULE_EXPRESSION: ${{ github.event.schedule }}
+          REQUESTED_MARKET: ${{ inputs.market || 'all' }}
           STOCK_LIST_CONFIG: ${{ vars.STOCK_LIST || secrets.STOCK_LIST }}
           MARKET_REVIEW_REGION: ${{ vars.MARKET_REVIEW_REGION || secrets.MARKET_REVIEW_REGION || 'cn' }}
           MARKET_REVIEW_COLOR_SCHEME: ${{ vars.MARKET_REVIEW_COLOR_SCHEME || secrets.MARKET_REVIEW_COLOR_SCHEME || 'green_up' }}
@@ -473,6 +485,27 @@ jobs:
             export STOCK_LIST="600519"
           fi
 
+          # 排程依 UTC cron 選擇市場；手動執行可選台股、美股或全部。
+          TARGET_MARKET="$REQUESTED_MARKET"
+          case "$SCHEDULE_EXPRESSION" in
+            '0 9 * * 1-5') TARGET_MARKET=tw ;;
+            '0 23 * * 1-5') TARGET_MARKET=us ;;
+            '') ;;
+            *) echo "Unknown scheduled trigger" >&2; exit 1 ;;
+          esac
+          case "$TARGET_MARKET" in
+            all|tw|us) ;;
+            *) echo "Unknown market: $TARGET_MARKET" >&2; exit 1 ;;
+          esac
+          export TARGET_MARKET
+          STOCK_LIST=$(python -c 'import os; codes=[s.strip() for s in os.environ["STOCK_LIST"].split(",") if s.strip()]; market=os.environ["TARGET_MARKET"]; print(",".join(s for s in codes if market == "all" or (s.upper().endswith((".TW", ".TWO"))) == (market == "tw")))')
+          export STOCK_LIST
+          if [ -z "$STOCK_LIST" ]; then
+            echo "No stocks configured for $TARGET_MARKET" >&2
+            exit 1
+          fi
+          echo "分析市場: $TARGET_MARKET"
+
           # 处理 LITELLM YAML 配置文件
           if [ -n "$LITELLM_CONFIG_YAML" ] && [ -n "$LITELLM_CONFIG" ]; then
             echo "📝 使用 GitHub Actions Secrets/Variables 中的 LITELLM_CONFIG_YAML 配置"
@@ -484,7 +517,7 @@ jobs:
           fi
 
           # 判断运行模式
-          MODE="${{ github.event.inputs.mode || 'full' }}"
+          MODE="${{ github.event.inputs.mode || 'stocks-only' }}"
           
           echo "=========================================="
           echo "🚀 A股自选股智能分析系统"
