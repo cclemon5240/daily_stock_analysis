@@ -3,6 +3,7 @@
 # ===================================
 
 # Core dependencies
+opencc-python-reimplemented==0.1.7  # Traditional Chinese Telegram notifications
 python-dotenv>=1.0.0        # Environment variable configuration
 tenacity>=8.2.0             # Retry support with exponential backoff
 sqlalchemy>=2.0.0           # ORM database access
