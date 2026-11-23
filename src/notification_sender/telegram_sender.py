@@ -12,6 +12,8 @@ import requests
 import time
 import re
 
+from opencc import OpenCC
+
 from src.config import Config
 from src.formatters import (
     _custom_unit_to_index,
@@ -33,6 +35,7 @@ class TelegramSender:
         Args:
             config: 配置对象
         """
+        self._traditional_converter = OpenCC("s2tw")
         self._telegram_config = {
             'bot_token': getattr(config, 'telegram_bot_token', None),
             'chat_id': getattr(config, 'telegram_chat_id', None),
@@ -91,6 +94,7 @@ class TelegramSender:
             max_length = 4096
 
             sanitized_content = strip_hidden_markdown_metadata(content).strip()
+            sanitized_content = self._traditional_converter.convert(sanitized_content)
             if not sanitized_content:
                 logger.warning("Telegram 消息内容为空，跳过推送")
                 return False
