@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- [改进] 此个人部署按台湾时间分别触发台股（周一至周五 17:00）与美股（周二至周六 07:00）报告；按 STOCK_LIST 后缀分流，手动入口支持市场选择，排程默认仅个股分析。
+
 - [改进] 此个人部署的 Telegram 文字通知在发送前统一转换为台湾繁体字；在 Markdown 转义及分段前转换，复用现有重试与纯文字回退流程，不增加模型调用。
 
 - [新功能] 新增 DSA 内部因子契约（`FactorDefinition`/`FactorSnapshot`/`CandidatePoolRun`/`CandidateFactorScore`，契约版本 1.0）：将选股 `factor_scores` 映射为带字段版本、来源、数据质量与降级原因的内部结构（#1902 P0）；仅新增 schema 与纯映射函数，不改变现有选股、API、回测与 DecisionSignal 行为。`ScreenResult.created_at` 改为带本地偏移的 ISO 字符串（按部署进程本地时钟换算为 UTC），`pick_to_factor_snapshot` 的显式 `computed_at` 同样归一化；内置引擎来源守卫的作用域已修正，原创的 `factor_mapping.py` 不再被误判为 AlphaSift 派生文件。
